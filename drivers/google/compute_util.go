@@ -32,6 +32,7 @@ type ComputeUtil struct {
 	preemptible       bool
 	useInternalIP     bool
 	useInternalIPOnly bool
+	userData          string
 	service           *raw.Service
 	zoneURL           string
 	globalURL         string
@@ -71,6 +72,7 @@ func newComputeUtil(driver *Driver) (*ComputeUtil, error) {
 		preemptible:       driver.Preemptible,
 		useInternalIP:     driver.UseInternalIP,
 		useInternalIPOnly: driver.UseInternalIPOnly,
+		userData:          driver.UserData,
 		service:           service,
 		zoneURL:           apiURL + driver.Project + "/zones/" + driver.Zone,
 		globalURL:         apiURL + driver.Project + "/global",
@@ -235,6 +237,8 @@ func (c *ComputeUtil) instance() (*raw.Instance, error) {
 func (c *ComputeUtil) createInstance(d *Driver) error {
 	log.Infof("Creating instance")
 
+	userDataValue := fmt.Sprintf("%s", c.userData)
+
 	instance := &raw.Instance{
 		Name:        c.instanceName,
 		Description: "docker host vm",
@@ -254,6 +258,14 @@ func (c *ComputeUtil) createInstance(d *Driver) error {
 		},
 		Tags: &raw.Tags{
 			Items: parseTags(d),
+		},
+		Metadata: &raw.Metadata{
+			Items: []*raw.MetadataItems{
+				{
+					Key:   "user-data",
+					Value: &userDataValue,
+				},
+			},
 		},
 		ServiceAccounts: []*raw.ServiceAccount{
 			{
@@ -364,15 +376,11 @@ func (c *ComputeUtil) uploadSSHKey(instance *raw.Instance, sshKeyPath string) er
 	}
 
 	metaDataValue := fmt.Sprintf("%s:%s %s\n", c.userName, strings.TrimSpace(string(sshKey)), c.userName)
+	instance.Metadata.Items = append(instance.Metadata.Items, &raw.MetadataItems{Key: "sshKeys", Value: &metaDataValue})
 
 	op, err := c.service.Instances.SetMetadata(c.project, c.zone, c.instanceName, &raw.Metadata{
 		Fingerprint: instance.Metadata.Fingerprint,
-		Items: []*raw.MetadataItems{
-			{
-				Key:   "sshKeys",
-				Value: &metaDataValue,
-			},
-		},
+		Items:       instance.Metadata.Items,
 	}).Do()
 
 	return c.waitForRegionalOp(op.Name)

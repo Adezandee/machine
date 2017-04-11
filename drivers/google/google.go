@@ -26,6 +26,7 @@ type Driver struct {
 	Preemptible       bool
 	UseInternalIP     bool
 	UseInternalIPOnly bool
+	UserData          string
 	Scopes            string
 	DiskSize          int
 	Project           string
@@ -135,6 +136,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Configure GCE instance to not have an external IP address",
 			EnvVar: "GOOGLE_USE_INTERNAL_IP_ONLY",
 		},
+		mcnflag.StringFlag{
+			Name:   "google-user-data",
+			Usage:  "Cloud-init user-data",
+			EnvVar: "GOOGLE_USER_DATA",
+		},
 		mcnflag.BoolFlag{
 			Name:   "google-use-existing",
 			Usage:  "Don't create a new VM, use an existing one",
@@ -204,6 +210,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		d.Preemptible = flags.Bool("google-preemptible")
 		d.UseInternalIP = flags.Bool("google-use-internal-ip") || flags.Bool("google-use-internal-ip-only")
 		d.UseInternalIPOnly = flags.Bool("google-use-internal-ip-only")
+		d.UserData = flags.String("google-user-data")
 		d.Scopes = flags.String("google-scopes")
 		d.Tags = flags.String("google-tags")
 		d.OpenPorts = flags.StringSlice("google-open-port")
